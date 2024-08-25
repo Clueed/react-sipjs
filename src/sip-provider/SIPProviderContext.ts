@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 
 import {
   IProviderContext,
@@ -22,50 +22,63 @@ export const useSIPProvider = () => {
   return useContext(ProviderContext);
 };
 
-export const useSessionCall = (sessionId: string) => {
-  if (!sessionId) return null;
+export const useSessionCall = (sessionId?: string) => {
   const { sessions, sessionManager, sessionTimer } = useSIPProvider();
-  const session = sessions[sessionId];
+
+  const session = sessionId ? sessions[sessionId] : null;
 
   const [isMuted, setIsMuted] = useState<boolean>(
-    sessionManager?.isMuted(session) || false
+    (session && sessionManager?.isMuted(session)) || false
   );
   const [isHeld, setIsHeld] = useState<boolean>(
-    sessionManager?.isHeld(session) || false
+    (session && sessionManager?.isHeld(session)) || false
   );
+
+  useEffect(() => {
+    if (session && sessionManager) {
+      setIsMuted(sessionManager.isMuted(session));
+      setIsHeld(sessionManager.isHeld(session));
+    }
+  }, [session, sessionManager]);
 
   const direction =
     session instanceof Inviter
       ? SessionDirection.OUTGOING
       : SessionDirection.INCOMING;
 
-  const timer: Timer | undefined = sessionTimer[sessionId];
+  const timer = sessionId ? sessionTimer[sessionId] : undefined;
 
-  return {
-    direction,
-    session: session,
-    timer,
-    hold: () => {
-      sessionManager?.hold(session);
-      setIsHeld(true);
-    },
-    unhold: () => {
-      sessionManager?.unhold(session);
-      setIsHeld(false);
-    },
-    isHeld: isHeld,
+  if (!session) {
+    return null;
+  }
 
-    mute: () => {
-      sessionManager?.mute(session);
-      setIsMuted(true);
-    },
-    unmute: () => {
-      sessionManager?.unmute(session);
-      setIsMuted(false);
-    },
-    isMuted: isMuted,
-    answer: () => sessionManager?.answer(session),
-    decline: () => sessionManager?.decline(session),
-    hangup: () => sessionManager?.hangup(session),
-  };
+  if (session) {
+    return {
+      direction,
+      session: session,
+      timer,
+      hold: () => {
+        sessionManager?.hold(session);
+        setIsHeld(true);
+      },
+      unhold: () => {
+        sessionManager?.unhold(session);
+        setIsHeld(false);
+      },
+      isHeld: isHeld,
+
+      mute: () => {
+        sessionManager?.mute(session);
+        setIsMuted(true);
+      },
+      unmute: () => {
+        sessionManager?.unmute(session);
+        setIsMuted(false);
+      },
+      isMuted: isMuted,
+      answer: () => sessionManager?.answer(session),
+      decline: () => sessionManager?.decline(session),
+      hangup: () => sessionManager?.hangup(session),
+    };
+  }
 };
